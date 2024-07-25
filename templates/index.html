@@ -5,15 +5,15 @@
     <title>Screen Stream</title>
 
     <style>
-        .main {
-            width: 100%;
-            height: 100%;
-            top: 0px;
-            left: 0px;
-            position: absolute;
+        body {
+            width: 100vw;
+            height: 100vh;
             margin: 0;
             padding: 0;
             overflow: hidden;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
         }
     </style>
 
@@ -24,17 +24,17 @@
 
         function touchStart(x, y) {
             console.log("touchStart")
-            webSocketForMouseControl.send(`{"x": ${x}, "y": ${y}, "event": "down"}`);
+            webSocketForMouseControl.send(`{"x": ${x}, "y": ${y}, "event": "down", "width": ${window.innerWidth}, "height": ${window.innerHeight}}`);
         }
 
         function touchMove(x, y) {
             console.log("touchMove")
-            webSocketForMouseControl.send(`{"x": ${x}, "y": ${y}, "event": "move"}`);
+            webSocketForMouseControl.send(`{"x": ${x}, "y": ${y}, "event": "move", "width": ${window.innerWidth}, "height": ${window.innerHeight}}`);
         }
 
         function touchEnd(x, y) {
             console.log("touchEnd")
-            webSocketForMouseControl.send(`{"x": ${x}, "y": ${y}, "event": "up"}`);
+            webSocketForMouseControl.send(`{"x": ${x}, "y": ${y}, "event": "up", "width": ${window.innerWidth}, "height": ${window.innerHeight}}`);
         }
 
         function onLoad() {
@@ -88,6 +88,5 @@
     </script>
 </head>
 <body onload="onLoad()" id="body">
-    <div class="main"></div>
 </body>
 </html>
