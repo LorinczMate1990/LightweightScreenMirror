@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Screen Stream</title>
+
+    <style>
+        .main {
+            width: 100%;
+            height: 100%;
+            top: 0px;
+            left: 0px;
+            position: absolute;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+    </style>
+
+    <script>
+        var url = 'http://' + document.domain + ':' + location.port;
+        const webSocketForVideo = new WebSocket(url+"/video");
+        const webSocketForMouseControl = new WebSocket(url+"/mouse");
+
+        function touchStart(x, y) {
+            console.log("touchStart")
+            webSocketForMouseControl.send(`{"x": ${x}, "y": ${y}, "event": "down"}`);
+        }
+
+        function touchMove(x, y) {
+            console.log("touchMove")
+            webSocketForMouseControl.send(`{"x": ${x}, "y": ${y}, "event": "move"}`);
+        }
+
+        function touchEnd(x, y) {
+            console.log("touchEnd")
+            webSocketForMouseControl.send(`{"x": ${x}, "y": ${y}, "event": "up"}`);
+        }
+
+        function onLoad() {
+            var body = document.getElementById('body');
+
+            body.addEventListener('touchstart', (event) => {
+                const touch = event.touches[0];
+                const x = touch.clientX;
+                const y = touch.clientY;
+                touchStart(x, y);
+            });
+
+            body.addEventListener('touchmove', (event) => {
+                const touch = event.touches[0];
+                const x = touch.clientX;
+                const y = touch.clientY;
+                touchMove(x, y);
+            });
+
+            body.addEventListener('touchend', (event) => {
+                const touch = event.touches[0];
+                const x = touch.clientX;
+                const y = touch.clientY;
+                touchEnd(x, y);
+            });
+
+            body.addEventListener('mousedown', (event) => {
+                console.log("Mouse pressed down")
+                const x = event.clientX;
+                const y = event.clientY;
+                touchStart(x, y);
+            });
+
+            body.addEventListener('mousemove', (event) => {
+                const x = event.clientX;
+                const y = event.clientY;
+                touchMove(x, y);
+            });
+
+            body.addEventListener('mouseup', (event) => {
+                const x = event.clientX;
+                const y = event.clientY;
+                touchEnd(x, y);
+            });
+
+
+            webSocketForVideo.onmessage = (event) => {
+                body.style.backgroundImage = 'url(data:image/jpeg;base64,' + event.data + ')';
+            };
+        }
+    </script>
+</head>
+<body onload="onLoad()" id="body">
+    <div class="main"></div>
+</body>
+</html>
