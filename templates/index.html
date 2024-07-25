@@ -90,7 +90,7 @@
             let y = 0;
 
             body.addEventListener('touchstart', (event) => {
-                touchEnd(x, y);
+                touchEnd(x, y); // To handle the bug that the touchend or touchcancel is not triggering
                 const touch = event.touches[0];
                 x = touch.clientX;
                 y = touch.clientY;
