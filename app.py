@@ -8,7 +8,7 @@ import time
 import json
 from pynput.mouse import Button, Controller
 
-RECTANGLE = {'top': 100, 'left': 100, 'width': 700, 'height': 500}
+RECTANGLE = {'top': 200, 'left': 200, 'width': 300, 'height': 300}
 
 class MouseEvent:
     def __init__(self, x, y, event, width, height):
@@ -76,6 +76,7 @@ def mouse(ws):
     print("Connected for mouse control")
     while True:
         event = ws.receive(timeout=None)
+        print(event)
         event_obj = MouseEvent.from_json(event)
         execute_mouse_event(event_obj)
 

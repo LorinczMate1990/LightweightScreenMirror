@@ -11,70 +11,80 @@
             margin: 0;
             padding: 0;
             overflow: hidden;
-            background-size: contain;
             background-repeat: no-repeat;
-            background-position: center;
+            background-position: top;
         }
     </style>
 
     <script>
         var url = 'http://' + document.domain + ':' + location.port;
-        let initializationData = {};
+        let config = {received: {}, calculated: {}};
         const webSocketForVideo = new WebSocket(url+"/video");
         const webSocketForMouseControl = new WebSocket(url+"/mouse");
 
-        function getBackgroundImageInfo() {
-            const body = document.body;
-            const bodyWidth = body.clientWidth;
-            const bodyHeight = body.clientHeight;
-
-            const img = new Image();
-            console.log("window.getComputedStyle(body).backgroundImage.slice(5, -2);" + window.getComputedStyle(body).backgroundImage)
-            img.src = window.getComputedStyle(body).backgroundImage.slice(5, -2); // Extract URL from background-image
+        function refreshConfigWithBackgroundImageOffsetAndSize() {
+            const {streamWidth, streamHeight} = config.received;
+            const bodyWidth = window.innerWidth;
+            const bodyHeight = window.innerHeight;
             
-            img.onload = () => {
-                const imgWidth = img.width;
-                const imgHeight = img.height;
-                const imgAspectRatio = imgWidth / imgHeight;
-                const bodyAspectRatio = bodyWidth / bodyHeight;
+            const imgWidth = streamWidth;
+            const imgHeight = streamHeight;
+            const imgAspectRatio = imgWidth / imgHeight;
+            const bodyAspectRatio = bodyWidth / bodyHeight;
 
-                let renderedWidth, renderedHeight;
+            let renderedWidth, renderedHeight;
 
-                if (bodyAspectRatio > imgAspectRatio) {
-                    renderedHeight = bodyHeight;
-                    renderedWidth = imgAspectRatio * renderedHeight;
-                } else {
-                    renderedWidth = bodyWidth;
-                    renderedHeight = renderedWidth / imgAspectRatio;
-                }
+            if (bodyAspectRatio > imgAspectRatio) {
+                renderedHeight = bodyHeight;
+                renderedWidth = imgAspectRatio * renderedHeight;
+            } else {
+                renderedWidth = bodyWidth;
+                renderedHeight = renderedWidth / imgAspectRatio;
+            }
 
-                const offsetX = (bodyWidth - renderedWidth) / 2;
-                const offsetY = (bodyHeight - renderedHeight) / 2;
+            const offsetX = (bodyWidth - renderedWidth) / 2;
+            const offsetY = (bodyHeight - renderedHeight) / 2;
 
-                console.log(`Rendered size: ${renderedWidth}px x ${renderedHeight}px`);
-                console.log(`Top-left corner position: (${offsetX}px, ${offsetY}px)`);
-            };
+            config.calculated = {
+                renderedWidth,
+                renderedHeight,
+                offsetX,
+                offsetY
+            }
+            document.getElementById("body").style.backgroundSize = `${renderedWidth}px ${renderedHeight}px`;
         }
 
         function touchStart(x, y) {
             console.log("touchStart")
-            webSocketForMouseControl.send(`{"x": ${x}, "y": ${y}, "event": "down", "width": ${window.innerWidth}, "height": ${window.innerHeight}}`);
+            sendMouseEventToServer(x, y, "down");
         }
 
         function touchMove(x, y) {
             console.log("touchMove")
-            webSocketForMouseControl.send(`{"x": ${x}, "y": ${y}, "event": "move", "width": ${window.innerWidth}, "height": ${window.innerHeight}}`);
+            sendMouseEventToServer(x, y, "move");    
         }
 
         function touchEnd(x, y) {
-            console.log("touchEnd")
-            webSocketForMouseControl.send(`{"x": ${x}, "y": ${y}, "event": "up", "width": ${window.innerWidth}, "height": ${window.innerHeight}}`);
+            sendMouseEventToServer(x, y, "up");
+        }
+
+        function sendMouseEventToServer(x, y, event) {
+
+            console.log({x, y})
+            const eventX = x;
+            const eventY = y;
+            console.log(config.calculated)
+
+            x -= config.calculated.offsetX;
+            y -= config.calculated.offsetY;
+
+            console.log({x, y})
+
+            webSocketForMouseControl.send(`{"x": ${x}, "y": ${y}, "event": "${event}", "width": ${config.calculated.renderedWidth}, "height": ${config.calculated.renderedHeight}, "comment": "${config.calculated.offsetX} - ${config.calculated.offsetY} | ${eventX} / ${window.innerWidth} - ${eventY} / ${window.innerHeight}"}`);
         }
 
         function onLoad() {
             var body = document.getElementById('body');
-
-            getBackgroundImageInfo();
 
             body.addEventListener('touchstart', (event) => {
                 const touch = event.touches[0];
@@ -117,10 +127,10 @@
             });
 
             webSocketForVideo.onmessage = (event) => {
-                console.log(event.data)
                 const packet = JSON.parse(event.data);
                 if (packet.type == "meta") {
-                    console.log(packet.payload);
+                    config.received = packet.payload;
+                    refreshConfigWithBackgroundImageOffsetAndSize();
                 } else {
                     body.style.backgroundImage = 'url(data:image/jpeg;base64,' + packet.payload + ')';
                 }
@@ -128,6 +138,7 @@
         }
     </script>
 </head>
-<body onload="onLoad()" id="body">
+<body onload="onLoad()" onresize="refreshConfigWithBackgroundImageOffsetAndSize()" id="body">
+    <img id="a"/>
 </body>
 </html>
