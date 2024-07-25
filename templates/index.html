@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 <head>
     <meta charset="UTF-8">
     <title>Screen Stream</title>
@@ -17,125 +18,155 @@
     </style>
 
     <script>
-        var url = 'http://' + document.domain + ':' + location.port;
-        let config = {received: {}, calculated: {}};
-        const webSocketForVideo = new WebSocket(url+"/video");
-        const webSocketForMouseControl = new WebSocket(url+"/mouse");
-
-        function refreshConfigWithBackgroundImageOffsetAndSize() {
-            const {streamWidth, streamHeight} = config.received;
-            const bodyWidth = window.innerWidth;
-            const bodyHeight = window.innerHeight;
-            
-            const imgWidth = streamWidth;
-            const imgHeight = streamHeight;
-            const imgAspectRatio = imgWidth / imgHeight;
-            const bodyAspectRatio = bodyWidth / bodyHeight;
-
-            let renderedWidth, renderedHeight;
-
-            if (bodyAspectRatio > imgAspectRatio) {
-                renderedHeight = bodyHeight;
-                renderedWidth = imgAspectRatio * renderedHeight;
-            } else {
-                renderedWidth = bodyWidth;
-                renderedHeight = renderedWidth / imgAspectRatio;
+        class Config {
+            constructor() {
+                this.received = {};
+                this.calculated = {};
             }
 
-            const offsetX = (bodyWidth - renderedWidth) / 2;
-            const offsetY = (bodyHeight - renderedHeight) / 2;
+            updateCalculatedConfig(streamWidth, streamHeight, bodyWidth, bodyHeight) {
+                const imgAspectRatio = streamWidth / streamHeight;
+                const bodyAspectRatio = bodyWidth / bodyHeight;
 
-            config.calculated = {
-                renderedWidth,
-                renderedHeight,
-                offsetX,
-                offsetY
+                let renderedWidth, renderedHeight;
+
+                if (bodyAspectRatio > imgAspectRatio) {
+                    renderedHeight = bodyHeight;
+                    renderedWidth = imgAspectRatio * renderedHeight;
+                } else {
+                    renderedWidth = bodyWidth;
+                    renderedHeight = renderedWidth / imgAspectRatio;
+                }
+
+                const offsetX = (bodyWidth - renderedWidth) / 2;
+                const offsetY = (bodyHeight - renderedHeight) / 2;
+
+                this.calculated = {
+                    renderedWidth,
+                    renderedHeight,
+                    offsetX,
+                    offsetY
+                };
             }
-            document.getElementById("body").style.backgroundSize = `${renderedWidth}px ${renderedHeight}px`;
         }
 
-        function touchStart(x, y) {
-            console.log("touchStart")
-            sendMouseEventToServer(x, y, "down");
+        class MouseControl {
+            constructor(config) {
+                this.config = config;
+                this.webSocketForMouseControl = new WebSocket('ws://' + document.domain + ':' + location.port + "/mouse");
+            }
+
+            sendMouseEventToServer(x, y, event) {
+                console.log({x, y});
+                const eventX = x;
+                const eventY = y;
+                console.log(this.config.calculated);
+
+                x -= this.config.calculated.offsetX;
+                y -= this.config.calculated.offsetY;
+
+                console.log({x, y});
+
+                this.webSocketForMouseControl.send(`{"x": ${x}, "y": ${y}, "event": "${event}", "width": ${this.config.calculated.renderedWidth}, "height": ${this.config.calculated.renderedHeight}, "comment": "${this.config.calculated.offsetX} - ${this.config.calculated.offsetY} | ${eventX} / ${window.innerWidth} - ${eventY} / ${window.innerHeight}"}`);
+            }
+
+            touchStart(x, y) {
+                console.log("touchStart");
+                this.sendMouseEventToServer(x, y, "down");
+            }
+
+            touchMove(x, y) {
+                console.log("touchMove");
+                this.sendMouseEventToServer(x, y, "move");
+            }
+
+            touchEnd(x, y) {
+                this.sendMouseEventToServer(x, y, "up");
+            }
+
+            handleTouchStart(event) {
+                if (this.lastX !== undefined && this.lastY !== undefined) {
+                    this.touchEnd(this.lastX, this.lastY); // To handle the bug that the touchend or touchcancel is not triggering
+                }
+                const touch = event.touches[0];
+                this.lastX = touch.clientX;
+                this.lastY = touch.clientY;
+                this.touchStart(this.lastX, this.lastY);
+            }
+
+            handleTouchMove(event) {
+                const touch = event.touches[0];
+                this.lastX = touch.clientX;
+                this.lastY = touch.clientY;
+                this.touchMove(this.lastX, this.lastY);
+            }
+
+            handleMouseDown(event) {
+                console.log("Mouse pressed down");
+                this.lastX = event.clientX;
+                this.lastY = event.clientY;
+                this.touchStart(this.lastX, this.lastY);
+            }
+
+            handleMouseMove(event) {
+                this.lastX = event.clientX;
+                this.lastY = event.clientY;
+                this.touchMove(this.lastX, this.lastY);
+            }
+
+            handleMouseUp(event) {
+                this.lastX = event.clientX;
+                this.lastY = event.clientY;
+                this.touchEnd(this.lastX, this.lastY);
+            }
         }
 
-        function touchMove(x, y) {
-            console.log("touchMove")
-            sendMouseEventToServer(x, y, "move");    
-        }
+        class VideoStream {
+            constructor(config) {
+                this.config = config;
+                this.webSocketForVideo = new WebSocket('ws://' + document.domain + ':' + location.port + "/video");
+                this.body = document.getElementById('body');
 
-        function touchEnd(x, y) {
-            sendMouseEventToServer(x, y, "up");
-        }
+                this.webSocketForVideo.onmessage = this.handleVideoMessage.bind(this);
+            }
 
-        function sendMouseEventToServer(x, y, event) {
+            handleVideoMessage(event) {
+                const packet = JSON.parse(event.data);
+                if (packet.type === "meta") {
+                    this.config.received = packet.payload;
+                    this.refreshConfigWithBackgroundImageOffsetAndSize();
+                } else {
+                    this.body.style.backgroundImage = 'url(data:image/jpeg;base64,' + packet.payload + ')';
+                }
+            }
 
-            console.log({x, y})
-            const eventX = x;
-            const eventY = y;
-            console.log(config.calculated)
+            refreshConfigWithBackgroundImageOffsetAndSize() {
+                const { streamWidth, streamHeight } = this.config.received;
+                const bodyWidth = window.innerWidth;
+                const bodyHeight = window.innerHeight;
 
-            x -= config.calculated.offsetX;
-            y -= config.calculated.offsetY;
-
-            console.log({x, y})
-
-            webSocketForMouseControl.send(`{"x": ${x}, "y": ${y}, "event": "${event}", "width": ${config.calculated.renderedWidth}, "height": ${config.calculated.renderedHeight}, "comment": "${config.calculated.offsetX} - ${config.calculated.offsetY} | ${eventX} / ${window.innerWidth} - ${eventY} / ${window.innerHeight}"}`);
+                this.config.updateCalculatedConfig(streamWidth, streamHeight, bodyWidth, bodyHeight);
+                this.body.style.backgroundSize = `${this.config.calculated.renderedWidth}px ${this.config.calculated.renderedHeight}px`;
+            }
         }
 
         function onLoad() {
-            var body = document.getElementById('body');
+            const config = new Config();
+            const mouseControl = new MouseControl(config);
+            const videoStream = new VideoStream(config);
 
-            let x = 0;
-            let y = 0;
+            const body = document.getElementById('body');
 
-            body.addEventListener('touchstart', (event) => {
-                touchEnd(x, y); // To handle the bug that the touchend or touchcancel is not triggering
-                const touch = event.touches[0];
-                x = touch.clientX;
-                y = touch.clientY;
-                touchStart(x, y);
-            });
+            body.addEventListener('touchstart',  mouseControl.handleTouchStart.bind(mouseControl));
+            body.addEventListener('touchmove', mouseControl.handleTouchMove.bind(mouseControl));
+            body.addEventListener('mousedown', mouseControl.handleMouseDown.bind(mouseControl));
+            body.addEventListener('mousemove', mouseControl.handleMouseMove.bind(mouseControl));
+            body.addEventListener('mouseup', mouseControl.handleMouseUp.bind(mouseControl));
 
-            body.addEventListener('touchmove', (event) => {
-                const touch = event.touches[0];
-                x = touch.clientX;
-                y = touch.clientY;
-                touchMove(x, y);
-            });
-
-            body.addEventListener('mousedown', (event) => {
-                console.log("Mouse pressed down")
-                x = event.clientX;
-                y = event.clientY;
-                touchStart(x, y);
-            });
-
-            body.addEventListener('mousemove', (event) => {
-                x = event.clientX;
-                y = event.clientY;
-                touchMove(x, y);
-            });
-
-            body.addEventListener('mouseup', (event) => {
-                x = event.clientX;
-                y = event.clientY;
-                touchEnd(x, y);
-            });
-
-            webSocketForVideo.onmessage = (event) => {
-                const packet = JSON.parse(event.data);
-                if (packet.type == "meta") {
-                    config.received = packet.payload;
-                    refreshConfigWithBackgroundImageOffsetAndSize();
-                } else {
-                    body.style.backgroundImage = 'url(data:image/jpeg;base64,' + packet.payload + ')';
-                }
-            };
+            window.addEventListener('resize', videoStream.refreshConfigWithBackgroundImageOffsetAndSize.bind(videoStream));
         }
     </script>
 </head>
-<body onload="onLoad()" onresize="refreshConfigWithBackgroundImageOffsetAndSize()" id="body">
-    <img id="a"/>
+<body onload="onLoad()" id="body">
 </body>
 </html>
