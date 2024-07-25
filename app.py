@@ -8,7 +8,7 @@ import time
 import json
 from pynput.mouse import Button, Controller
 
-RECTANGLE = {'top': 200, 'left': 200, 'width': 300, 'height': 300}
+RECTANGLE = {'top': 200, 'left': 200, 'width': 600, 'height': 600}
 
 class MouseEvent:
     def __init__(self, x, y, event, width, height):

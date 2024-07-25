@@ -86,43 +86,40 @@
         function onLoad() {
             var body = document.getElementById('body');
 
+            let x = 0;
+            let y = 0;
+
             body.addEventListener('touchstart', (event) => {
+                touchEnd(x, y);
                 const touch = event.touches[0];
-                const x = touch.clientX;
-                const y = touch.clientY;
+                x = touch.clientX;
+                y = touch.clientY;
                 touchStart(x, y);
             });
 
             body.addEventListener('touchmove', (event) => {
                 const touch = event.touches[0];
-                const x = touch.clientX;
-                const y = touch.clientY;
+                x = touch.clientX;
+                y = touch.clientY;
                 touchMove(x, y);
-            });
-
-            body.addEventListener('touchend', (event) => {
-                const touch = event.touches[0];
-                const x = touch.clientX;
-                const y = touch.clientY;
-                touchEnd(x, y);
             });
 
             body.addEventListener('mousedown', (event) => {
                 console.log("Mouse pressed down")
-                const x = event.clientX;
-                const y = event.clientY;
+                x = event.clientX;
+                y = event.clientY;
                 touchStart(x, y);
             });
 
             body.addEventListener('mousemove', (event) => {
-                const x = event.clientX;
-                const y = event.clientY;
+                x = event.clientX;
+                y = event.clientY;
                 touchMove(x, y);
             });
 
             body.addEventListener('mouseup', (event) => {
-                const x = event.clientX;
-                const y = event.clientY;
+                x = event.clientX;
+                y = event.clientY;
                 touchEnd(x, y);
             });
 
