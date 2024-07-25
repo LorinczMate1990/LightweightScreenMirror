@@ -19,8 +19,42 @@
 
     <script>
         var url = 'http://' + document.domain + ':' + location.port;
+        let initializationData = {};
         const webSocketForVideo = new WebSocket(url+"/video");
         const webSocketForMouseControl = new WebSocket(url+"/mouse");
+
+        function getBackgroundImageInfo() {
+            const body = document.body;
+            const bodyWidth = body.clientWidth;
+            const bodyHeight = body.clientHeight;
+
+            const img = new Image();
+            console.log("window.getComputedStyle(body).backgroundImage.slice(5, -2);" + window.getComputedStyle(body).backgroundImage)
+            img.src = window.getComputedStyle(body).backgroundImage.slice(5, -2); // Extract URL from background-image
+            
+            img.onload = () => {
+                const imgWidth = img.width;
+                const imgHeight = img.height;
+                const imgAspectRatio = imgWidth / imgHeight;
+                const bodyAspectRatio = bodyWidth / bodyHeight;
+
+                let renderedWidth, renderedHeight;
+
+                if (bodyAspectRatio > imgAspectRatio) {
+                    renderedHeight = bodyHeight;
+                    renderedWidth = imgAspectRatio * renderedHeight;
+                } else {
+                    renderedWidth = bodyWidth;
+                    renderedHeight = renderedWidth / imgAspectRatio;
+                }
+
+                const offsetX = (bodyWidth - renderedWidth) / 2;
+                const offsetY = (bodyHeight - renderedHeight) / 2;
+
+                console.log(`Rendered size: ${renderedWidth}px x ${renderedHeight}px`);
+                console.log(`Top-left corner position: (${offsetX}px, ${offsetY}px)`);
+            };
+        }
 
         function touchStart(x, y) {
             console.log("touchStart")
@@ -39,6 +73,8 @@
 
         function onLoad() {
             var body = document.getElementById('body');
+
+            getBackgroundImageInfo();
 
             body.addEventListener('touchstart', (event) => {
                 const touch = event.touches[0];
@@ -80,9 +116,14 @@
                 touchEnd(x, y);
             });
 
-
             webSocketForVideo.onmessage = (event) => {
-                body.style.backgroundImage = 'url(data:image/jpeg;base64,' + event.data + ')';
+                console.log(event.data)
+                const packet = JSON.parse(event.data);
+                if (packet.type == "meta") {
+                    console.log(packet.payload);
+                } else {
+                    body.style.backgroundImage = 'url(data:image/jpeg;base64,' + packet.payload + ')';
+                }
             };
         }
     </script>

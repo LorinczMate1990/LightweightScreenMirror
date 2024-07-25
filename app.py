@@ -64,10 +64,11 @@ def index():
         
 @sock.route('/video')
 def video(ws):
-    print("Connected for video stream")
+    print("Connected for video stream");
+    ws.send('{"type": "meta", "payload": {"streamWidth": '+str(RECTANGLE['width'])+', "streamHeight": '+str(RECTANGLE['height'])+'} }')
     while True:
         frame = capture_screen_region()
-        ws.send(frame)
+        ws.send('{"type": "frame", "payload": "'+frame+'"}')
         time.sleep(1/30)
         
 @sock.route('/mouse')
