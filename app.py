@@ -7,8 +7,15 @@ from io import BytesIO
 import time
 import json
 from pynput.mouse import Button, Controller
+import sys
 
-RECTANGLE = {'top': 200, 'left': 200, 'width': 600, 'height': 600}
+import tkinter as tk
+
+from threading import Thread
+
+
+
+RECTANGLE = {'top': 200, 'left': 200, 'width': 1200, 'height': 600}
 
 class MouseEvent:
     def __init__(self, x, y, event, width, height):
@@ -80,6 +87,75 @@ def mouse(ws):
         event_obj = MouseEvent.from_json(event)
         execute_mouse_event(event_obj)
 
+THICKNESS = 10
+
+class ResizableRectangle:
+    def __init__(self, master):
+        self.master = master
+        self.create_windows()
+
+    def create_windows(self):
+        # Create the top, bottom, left, and right windows
+        self.top = tk.Toplevel(self.master)
+        self.bottom = tk.Toplevel(self.master)
+        self.left = tk.Toplevel(self.master)
+        self.right = tk.Toplevel(self.master)
+
+        # Remove window decorations
+        for win in [self.top, self.bottom, self.left, self.right]:
+            win.overrideredirect(True)
+            win.configure(bg='red')
+
+        self.update_windows()
+
+        # Bind mouse events for resizing
+        self.top.bind('<B1-Motion>', self.resize_top)
+        self.bottom.bind('<B1-Motion>', self.resize_bottom)
+        self.left.bind('<B1-Motion>', self.resize_left)
+        self.right.bind('<B1-Motion>', self.resize_right)
+
+    def update_windows(self):
+        self.top.geometry(f"{RECTANGLE['width']}x{THICKNESS}+{RECTANGLE['left']}+{RECTANGLE['top']}")
+        self.bottom.geometry(f"{RECTANGLE['width']}x{THICKNESS}+{RECTANGLE['left']}+{RECTANGLE['top'] + RECTANGLE['height'] - THICKNESS}")
+        self.left.geometry(f"{THICKNESS}x{RECTANGLE['height']}+{RECTANGLE['left']}+{RECTANGLE['top']}")
+        self.right.geometry(f"{THICKNESS}x{RECTANGLE['height']}+{RECTANGLE['left'] + RECTANGLE['width'] - THICKNESS}+{RECTANGLE['top']}")
+
+    def resize_top(self, event):
+        new_height = RECTANGLE['height'] - (event.y_root - RECTANGLE['top'])
+        if new_height > THICKNESS * 2:
+            RECTANGLE['height'] = new_height
+            RECTANGLE['top'] = event.y_root
+            self.update_windows()
+
+    def resize_bottom(self, event):
+        new_height = event.y_root - RECTANGLE['top']
+        if new_height > THICKNESS * 2:
+            RECTANGLE['height'] = new_height
+            self.update_windows()
+
+    def resize_left(self, event):
+        new_width = RECTANGLE['width'] - (event.x_root - RECTANGLE['left'])
+        if new_width > THICKNESS * 2:
+            RECTANGLE['width'] = new_width
+            RECTANGLE['left'] = event.x_root
+            self.update_windows()
+
+    def resize_right(self, event):
+        new_width = event.x_root - RECTANGLE['left']
+        if new_width > THICKNESS * 2:
+            RECTANGLE['width'] = new_width
+            self.update_windows()
+
+def createRectangle():
+    root = tk.Tk()
+    root.withdraw()  # Hide the root window
+    ResizableRectangle(root)
+    root.mainloop()
+
 if __name__ == '__main__':
-    print("Ok")
+    print("Starting Tkinter GUI")
+    t = Thread(target=createRectangle)
+    t.start()
+    
+    print("Start server")
     app.run(host='0.0.0.0', port=5000)
