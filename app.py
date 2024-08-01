@@ -115,10 +115,15 @@ class ResizableRectangle:
         self.right.bind('<B1-Motion>', self.resize_right)
 
     def update_windows(self):
-        self.top.geometry(f"{RECTANGLE['width']}x{THICKNESS}+{RECTANGLE['left']}+{RECTANGLE['top']}")
-        self.bottom.geometry(f"{RECTANGLE['width']}x{THICKNESS}+{RECTANGLE['left']}+{RECTANGLE['top'] + RECTANGLE['height'] - THICKNESS}")
-        self.left.geometry(f"{THICKNESS}x{RECTANGLE['height']}+{RECTANGLE['left']}+{RECTANGLE['top']}")
-        self.right.geometry(f"{THICKNESS}x{RECTANGLE['height']}+{RECTANGLE['left'] + RECTANGLE['width'] - THICKNESS}+{RECTANGLE['top']}")
+        width = RECTANGLE['width']
+        height = RECTANGLE['height']
+        top = RECTANGLE['top']
+        left = RECTANGLE['left']
+        
+        self.top.geometry(f"{width+2*THICKNESS}x{THICKNESS}+{left-THICKNESS}+{top-THICKNESS}")
+        self.bottom.geometry(f"{width+2*THICKNESS}x{THICKNESS}+{left-THICKNESS}+{top + height}")
+        self.left.geometry(f"{THICKNESS}x{height}+{left-THICKNESS}+{top}")
+        self.right.geometry(f"{THICKNESS}x{height}+{left + width}+{top}")
 
     def resize_top(self, event):
         new_height = RECTANGLE['height'] - (event.y_root - RECTANGLE['top'])
