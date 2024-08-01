@@ -19,27 +19,48 @@
 
     <script>
         class Config {
-            constructor() {
-                this.received = {};
-                this.calculated = {};
+            onConfigChanged(f) {
+                this.configChangedEventListener = f;
             }
 
-            updateCalculatedConfig(streamWidth, streamHeight, bodyWidth, bodyHeight) {
-                const imgAspectRatio = streamWidth / streamHeight;
-                const bodyAspectRatio = bodyWidth / bodyHeight;
+            constructor() {
+                this.streamWidth = 1;
+                this.streamHeight = 1;
+                this.bodyWidth = 1;
+                this.bodyHeight = 1;
+                this.calculated = {};
+                this.configChangedEventListener = undefined;
+            }
+
+            setStreamDimensions({streamWidth, streamHeight}) {
+                this.streamWidth = streamWidth;
+                this.streamHeight = streamHeight;
+                this.updateCalculatedConfig();
+            }
+
+            setBodyDimensions({bodyWidth, bodyHeight}) {
+                this.bodyWidth = bodyWidth;
+                this.bodyHeight = bodyHeight;
+                this.updateCalculatedConfig();
+            }
+
+            updateCalculatedConfig() {
+                console.log("Update calculated config")
+                const imgAspectRatio = this.streamWidth / this.streamHeight;
+                const bodyAspectRatio = this.bodyWidth / this.bodyHeight;
 
                 let renderedWidth, renderedHeight;
 
                 if (bodyAspectRatio > imgAspectRatio) {
-                    renderedHeight = bodyHeight;
+                    renderedHeight = this.bodyHeight;
                     renderedWidth = imgAspectRatio * renderedHeight;
                 } else {
-                    renderedWidth = bodyWidth;
+                    renderedWidth = this.bodyWidth;
                     renderedHeight = renderedWidth / imgAspectRatio;
                 }
 
-                const offsetX = (bodyWidth - renderedWidth) / 2;
-                const offsetY = (bodyHeight - renderedHeight) / 2;
+                const offsetX = (this.bodyWidth - renderedWidth) / 2;
+                const offsetY = (this.bodyHeight - renderedHeight) / 2;
 
                 this.calculated = {
                     renderedWidth,
@@ -47,6 +68,18 @@
                     offsetX,
                     offsetY
                 };
+
+                if (this.configChangedEventListener !== undefined) this.configChangedEventListener(this.calculated );
+            }
+
+            getOffset() {
+                console.log({offsetX: this.calculated.offsetX, offsetY: this.calculated.offsetY})
+                return {offsetX: this.calculated.offsetX, offsetY: this.calculated.offsetY};
+            }
+
+            getRenderedDimension() {
+                console.log({width: this.calculated.renderedWidth, height: this.calculated.renderedHeight})
+                return {width: this.calculated.renderedWidth, height: this.calculated.renderedHeight};
             }
         }
 
@@ -54,29 +87,24 @@
             constructor(config) {
                 this.config = config;
                 this.webSocketForMouseControl = new WebSocket('ws://' + document.domain + ':' + location.port + "/mouse");
+                this.lastX = undefined;
+                this.lastY = undefined;
             }
 
             sendMouseEventToServer(x, y, event) {
-                console.log({x, y});
-                const eventX = x;
-                const eventY = y;
-                console.log(this.config.calculated);
+                const {offsetX, offsetY} = this.config.getOffset();
+                const {width, height} = this.config.getRenderedDimension();
 
-                x -= this.config.calculated.offsetX;
-                y -= this.config.calculated.offsetY;
-
-                console.log({x, y});
-
-                this.webSocketForMouseControl.send(`{"x": ${x}, "y": ${y}, "event": "${event}", "width": ${this.config.calculated.renderedWidth}, "height": ${this.config.calculated.renderedHeight}, "comment": "${this.config.calculated.offsetX} - ${this.config.calculated.offsetY} | ${eventX} / ${window.innerWidth} - ${eventY} / ${window.innerHeight}"}`);
+                x -= offsetX;
+                y -= offsetY;
+                this.webSocketForMouseControl.send(`{"x": ${x}, "y": ${y}, "event": "${event}", "width": ${width}, "height": ${height}}`);
             }
 
             touchStart(x, y) {
-                console.log("touchStart");
                 this.sendMouseEventToServer(x, y, "down");
             }
 
             touchMove(x, y) {
-                console.log("touchMove");
                 this.sendMouseEventToServer(x, y, "move");
             }
 
@@ -133,20 +161,10 @@
             handleVideoMessage(event) {
                 const packet = JSON.parse(event.data);
                 if (packet.type === "meta") {
-                    this.config.received = packet.payload;
-                    this.refreshConfigWithBackgroundImageOffsetAndSize();
+                    this.config.setStreamDimensions(packet.payload);
                 } else {
                     this.body.style.backgroundImage = 'url(data:image/jpeg;base64,' + packet.payload + ')';
                 }
-            }
-
-            refreshConfigWithBackgroundImageOffsetAndSize() {
-                const { streamWidth, streamHeight } = this.config.received;
-                const bodyWidth = window.innerWidth;
-                const bodyHeight = window.innerHeight;
-
-                this.config.updateCalculatedConfig(streamWidth, streamHeight, bodyWidth, bodyHeight);
-                this.body.style.backgroundSize = `${this.config.calculated.renderedWidth}px ${this.config.calculated.renderedHeight}px`;
             }
         }
 
@@ -156,6 +174,14 @@
             const videoStream = new VideoStream(config);
 
             const body = document.getElementById('body');
+            const bodyWidth = window.innerWidth;
+            const bodyHeight = window.innerHeight;
+            config.setBodyDimensions({bodyWidth, bodyHeight})
+
+            config.onConfigChanged(({renderedWidth, renderedHeight}) => {
+                this.body = document.getElementById('body');
+                body.style.backgroundSize = `${renderedWidth}px ${renderedHeight}px`;
+            })
 
             body.addEventListener('touchstart',  mouseControl.handleTouchStart.bind(mouseControl));
             body.addEventListener('touchmove', mouseControl.handleTouchMove.bind(mouseControl));
@@ -163,7 +189,11 @@
             body.addEventListener('mousemove', mouseControl.handleMouseMove.bind(mouseControl));
             body.addEventListener('mouseup', mouseControl.handleMouseUp.bind(mouseControl));
 
-            window.addEventListener('resize', videoStream.refreshConfigWithBackgroundImageOffsetAndSize.bind(videoStream));
+            window.addEventListener('resize', () => {
+                const bodyWidth = window.innerWidth;
+                const bodyHeight = window.innerHeight;
+                this.config.setBodyDimensions({bodyWidth, bodyHeight})
+            });
         }
     </script>
 </head>
