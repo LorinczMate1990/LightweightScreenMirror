@@ -38,19 +38,19 @@ def map_to_rectangle(mouseX, mouseY, maxMouseX, maxMouseY, goalArea):
     return (int(goalX), int(goalY))
 
 def execute_mouse_event(event_obj):
-    mapped_x, mapped_y = map_to_rectangle(event_obj.x, event_obj.y, event_obj.width, event_obj.height, RECTANGLE)
-    
-    if event_obj.event == 'move':
-        print(f"Mouse move to ({mapped_x}, {mapped_y})")
-        mouse_controller.position = (mapped_x, mapped_y)
-    elif event_obj.event == 'down':
-        print(f"Mouse down at ({mapped_x}, {mapped_y})")
-        mouse_controller.position = (mapped_x, mapped_y)
-        mouse_controller.press(Button.left)
-    elif event_obj.event == 'up':
-        print(f"Mouse up at ({mapped_x}, {mapped_y})")
-        mouse_controller.position = (mapped_x, mapped_y)
-        mouse_controller.release(Button.left)
+    if event_obj.event == 'up':
+        print(f"Mouse up")
+        mouse_controller.release(Button.left)        
+    else:
+        mapped_x, mapped_y = map_to_rectangle(event_obj.x, event_obj.y, event_obj.width, event_obj.height, RECTANGLE)
+        
+        if event_obj.event == 'move':
+            print(f"Mouse move to ({mapped_x}, {mapped_y})")
+            mouse_controller.position = (mapped_x, mapped_y)
+        elif event_obj.event == 'down':
+            print(f"Mouse down at ({mapped_x}, {mapped_y})")
+            mouse_controller.position = (mapped_x, mapped_y)
+            mouse_controller.press(Button.left)
 
 app = Flask(__name__)
 sock = Sock(app)

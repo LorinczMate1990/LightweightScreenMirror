@@ -114,7 +114,7 @@
 
             handleTouchStart(event) {
                 if (this.lastX !== undefined && this.lastY !== undefined) {
-                    this.touchEnd(this.lastX, this.lastY); // To handle the bug that the touchend or touchcancel is not triggering
+                 //   this.touchEnd(this.lastX, this.lastY); // To handle the bug that the touchend or touchcancel is not triggering
                 }
                 const touch = event.touches[0];
                 this.lastX = touch.clientX;
@@ -185,6 +185,7 @@
 
             body.addEventListener('touchstart',  mouseControl.handleTouchStart.bind(mouseControl));
             body.addEventListener('touchmove', mouseControl.handleTouchMove.bind(mouseControl));
+            body.addEventListener('touchend', mouseControl.touchEnd.bind(mouseControl));
             body.addEventListener('mousedown', mouseControl.handleMouseDown.bind(mouseControl));
             body.addEventListener('mousemove', mouseControl.handleMouseMove.bind(mouseControl));
             body.addEventListener('mouseup', mouseControl.handleMouseUp.bind(mouseControl));
